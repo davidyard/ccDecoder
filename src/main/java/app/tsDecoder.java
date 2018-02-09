@@ -4,10 +4,7 @@ import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
+import java.util.*;
 
 public class tsDecoder {
     public static void main(String[] args) {
@@ -67,7 +64,7 @@ public class tsDecoder {
 
 
             // convert file to byte[]
-            byte[] bFile = readBytesFromFile("C:\\Users\\DavidYardimian\\tsFiles\\1080p_1.ts");
+            byte[] bFile = readBytesFromFile("C:\\Users\\DavidYardimian\\tsFiles\\1080i_1.ts");
 
             // save byte[] into a file
 
@@ -83,7 +80,7 @@ public class tsDecoder {
                 if(lineNumber == 2){
                     getPCR(newB);
                 }*/
-            LinkedHashSet<SEINalUnit> sei = seiFound(bFile);
+            TreeMap<Long, SEINalUnit> sei = seiFound(bFile);
             HashMap<Integer, String> words = decodeCC(sei);
             System.out.println("608 CC IS: "+words.get(608));
             System.out.println("708 CC IS: "+words.get(708));
@@ -159,9 +156,13 @@ public class tsDecoder {
         return pcr;
     }
 
-    private static LinkedHashSet<SEINalUnit> seiFound(byte[] array){
-        LinkedHashSet<SEINalUnit> seiUnits = new LinkedHashSet<SEINalUnit>();
+    private static TreeMap<Long, SEINalUnit> seiFound(byte[] array){
+        //LinkedHashSet<SEINalUnit> seiUnits = new LinkedHashSet<SEINalUnit>();
+        TreeMap<Long, SEINalUnit> orderedSeiUnits = new TreeMap<Long, SEINalUnit>();
         int byteNumber = 0;
+        long pts = 0;
+        String PESPacketStarter = "00000000000000000000000111100000"; //in hex it is 00 00 01 E0
+        int ptsFound = 0;
         String seiKeyCode = "10110101000000000011000101000111010000010011100100110100";
         //in hex it is B5003147413934
         String byteMessage = "";
@@ -191,45 +192,58 @@ public class tsDecoder {
                 byteMessage += s;
                 header = "";
             }
-            if(!seiKeyCode.contains(byteMessage)){
-                byteMessage = "";
-            }
-            if(byteMessage.equalsIgnoreCase(seiKeyCode)){
-                byte[] newB = Arrays.copyOfRange(array, a+1, a+189);
-                System.out.println("...\n");
-                for(byte b: newB) {
-                    int z = Byte.toUnsignedInt(b);//getting int format of byte since the byte is a number
-                    String q = Integer.toBinaryString(z);//getting the binary representation of the int
-                    while (q.length() < 8) {
-                        q = 0 + q;//extending the string to have a length of 8 since 0 will only have a length of 1
-                    }
-                    String s1 = q.substring(0, 4);
-                    String s2 = q.substring(4, 8);
-                    int decimal1 = Integer.parseInt(s1,2);
-                    String hexStr1 = Integer.toString(decimal1,16);
-                    int decimal2 = Integer.parseInt(s2, 2);
-                    String hexStr2 = Integer.toString(decimal2, 16);
-                    //System.out.print(hexStr1+hexStr2);
+            if(ptsFound == 0){
+                if(!PESPacketStarter.contains(byteMessage)){
+                    byteMessage = "";
                 }
-                //System.out.println("Reached Here");
-                SEINalUnit sei = new SEINalUnit(newB,byteNumber);
-                seiUnits.add(sei);
-                byteMessage = "";
             }
+            if(byteMessage.equalsIgnoreCase(PESPacketStarter) && ptsFound == 0){
+                ptsFound = 1;
+                byteMessage = "";
+                byte[] newB = Arrays.copyOfRange(array, a+6, a+11);
+                pts = presentationTimeStamp(newB);
+            }
+            if(ptsFound == 1) {
+                if (!seiKeyCode.contains(byteMessage)) {
+                    byteMessage = "";
+                }
+                if (byteMessage.equalsIgnoreCase(seiKeyCode)) {
+                    byte[] newB = Arrays.copyOfRange(array, a + 1, a + 189);
+                    System.out.println("...\n");
+                    for (byte b : newB) {
+                        int z = Byte.toUnsignedInt(b);//getting int format of byte since the byte is a number
+                        String q = Integer.toBinaryString(z);//getting the binary representation of the int
+                        while (q.length() < 8) {
+                            q = 0 + q;//extending the string to have a length of 8 since 0 will only have a length of 1
+                        }
+                        String s1 = q.substring(0, 4);
+                        String s2 = q.substring(4, 8);
+                        int decimal1 = Integer.parseInt(s1, 2);
+                        String hexStr1 = Integer.toString(decimal1, 16);
+                        int decimal2 = Integer.parseInt(s2, 2);
+                        String hexStr2 = Integer.toString(decimal2, 16);
+                        //System.out.print(hexStr1+hexStr2);
+                    }
+                    //System.out.println("Reached Here");
+                    SEINalUnit sei = new SEINalUnit(newB, byteNumber, pts);
+                    orderedSeiUnits.put(pts, sei);
+                    byteMessage = "";
+                    ptsFound = 0;
+                }
 
-
+            }
         }
-        return seiUnits;
+        return orderedSeiUnits;
     }
 
-    private static HashMap<Integer, String> decodeCC(LinkedHashSet<SEINalUnit> seiUnits){
+    private static HashMap<Integer, String> decodeCC(TreeMap<Long, SEINalUnit> seiUnits){
         HashMap<Integer,String> words = new HashMap<>();
         String six = "";
         String seven = "";
         DecoderFor608CC six08 = new DecoderFor608CC();
         DecoderFor708CC seven08 = new DecoderFor708CC();
-        for (SEINalUnit sei: seiUnits) {
-            int byteNumber = sei.byteNumber;
+        for(Map.Entry<Long,SEINalUnit> entry : seiUnits.entrySet()) {
+            int byteNumber = entry.getValue().byteNumber;
             //System.out.println("ByteNumber: "+byteNumber);
             String byteMessage = "";
             String first = "";
@@ -239,10 +253,10 @@ public class tsDecoder {
             int firstByteFound = 0;//if 1 that means the first byte has been found
             int secondByteFound = 0;//if 1 that means the second byte has been found
             int thirdByteFound = 0;//FF
-            for(int a = 0; a < sei.seiUnit.length;a++) {
+            for(int a = 0; a < entry.getValue().seiUnit.length;a++) {
                 //System.out.println(Byte.toUnsignedInt(b));
                 byteNumber = (byteNumber + 1)%188;//to check if we are going to start a new line, which means we are going to start reading the header data
-                int x = Byte.toUnsignedInt(sei.seiUnit[a]);//getting int format of byte since the byte is a number
+                int x = Byte.toUnsignedInt(entry.getValue().seiUnit[a]);//getting int format of byte since the byte is a number
                 String s = Integer.toBinaryString(x);//getting the binary representation of the int
                 while (s.length() < 8) {
                     s = 0 + s;//extending the string to have a length of 8 since 0 will only have a length of 1
@@ -266,8 +280,8 @@ public class tsDecoder {
                 }
                 if(secondByteFound == 1 && byteNumber > 3){
                     //System.out.println("Reacsjkb");
-                    byte[] closedCaptionInformation = Arrays.copyOfRange(sei.seiUnit, a+2, a+(countLength*3)+2);
-                    System.out.println("ARRY LENGJ: "+closedCaptionInformation.length+"\n");
+                    byte[] closedCaptionInformation = Arrays.copyOfRange(entry.getValue().seiUnit, a+2, a+(countLength*3)+2);
+                    System.out.println("ARRY LENGTH: "+closedCaptionInformation.length+"\n");
                     for (byte bite:closedCaptionInformation) {
                         int z = Byte.toUnsignedInt(bite);//getting int format of byte since the byte is a number
                         String q = Integer.toBinaryString(z);//getting the binary representation of the int
@@ -282,7 +296,7 @@ public class tsDecoder {
                         String hexStr2 = Integer.toString(decimal2, 16);
                         System.out.print(hexStr1+hexStr2);
                     }
-                    System.out.println("\n");
+                    System.out.println("  "+entry.getKey()+"\n");
                     six += six08.decode(closedCaptionInformation);
                     seven += seven08.decode(closedCaptionInformation);
                     break;
@@ -324,6 +338,23 @@ public class tsDecoder {
 
         return bytesArray;
 
+    }
+
+    private static long presentationTimeStamp(byte[] array){
+        String pts = "";
+        String stamp = "";
+        for(int a = 0; a < array.length;a++){
+            int x = Byte.toUnsignedInt(array[a]);//getting int format of byte since the byte is a number
+            String s = Integer.toBinaryString(x);//getting the binary representation of the int
+            while(s.length() < 8){
+                s = 0 + s;//extending the string to have a length of 8 since 0 will only have a length of 1
+            }
+            pts += s;
+        }
+        stamp += pts.substring(4, 7);
+        stamp += pts.substring(8, 22);
+        stamp += pts.substring(24, 38);
+        return Long.parseLong(stamp,2);
     }
 
 }

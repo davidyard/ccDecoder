@@ -3,10 +3,12 @@ package app;
 public class SEINalUnit {
     public byte[] seiUnit;
     public int byteNumber;
+    public long pts;
 
-    public SEINalUnit(byte[] seiUnit, int byteNumber){
+    public SEINalUnit(byte[] seiUnit, int byteNumber, long pts){
         this.byteNumber = byteNumber;
         this.seiUnit = seiUnit;
+        this.pts = pts;
     }
 
     public byte[] getSeiUnit() {
@@ -23,6 +25,14 @@ public class SEINalUnit {
 
     private void setByteNumber(int byteNumber) {
         this.byteNumber = byteNumber;
+    }
+
+    public long getPts() {
+        return pts;
+    }
+
+    public void setPts(long pts) {
+        this.pts = pts;
     }
 
 }
