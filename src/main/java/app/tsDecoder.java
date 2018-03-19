@@ -11,60 +11,11 @@ public class tsDecoder {
         decode();
     }
 
-    public static void audioDecoder() {
-        byte[] bFile = readBytesFromFile("C:\\Users\\DavidYardimian\\tsFiles\\1080p_1.ts");
-
-        // save byte[] into a file
-
-        String audioHeader = "010001110000000111100010";//4701e2
-        int header1 = 0;
-        int header2 = 1;
-        int header3 = 2;
-        try {
-            File dstFile = new File("demo.mp3");
-            //InputStream input = new ByteArrayInputStream(bFile);
-            FileOutputStream out = new FileOutputStream(dstFile);
-            for (int i = 0; i < bFile.length; i += 188) {
-                String header = "";
-                int x = Byte.toUnsignedInt(bFile[header1+i]);//getting int format of byte since the byte is a number
-                int y = Byte.toUnsignedInt(bFile[header2+i]);
-                int z = Byte.toUnsignedInt(bFile[header3+i]);
-                String sx = Integer.toBinaryString(x);//getting the binary representation of the int
-                String sy = Integer.toBinaryString(y);
-                String sz = Integer.toBinaryString(z);
-                while (sx.length() < 8) {
-                    sx = 0 + sx;//extending the string to have a length of 8 since 0 will only have a length of 1
-                }
-                while (sy.length() < 8) {
-                    sy = 0 + sy;//extending the string to have a length of 8 since 0 will only have a length of 1
-                }
-                while (sz.length() < 8) {
-                    sz = 0 + sz;//extending the string to have a length of 8 since 0 will only have a length of 1
-                }
-                header = sx + sy + sz;
-                /*String s1 = header.substring(8, 12);
-                String s2 = header.substring(12, 16);
-                int decimal1 = Integer.parseInt(s1,2);
-                String hexStr1 = Integer.toString(decimal1,16);
-                int decimal2 = Integer.parseInt(s2, 2);
-                String hexStr2 = Integer.toString(decimal2, 16);
-                System.out.println(hexStr1+hexStr2);*/
-                if (header.equalsIgnoreCase(audioHeader)) {
-                    System.out.println("REach");
-                    out.write(bFile, i + 4, i + 188);
-                }
-            }
-            out.close();
-        } catch (IOException e){
-            System.out.println("It failed.");
-        }
-    }
-
     public static void decode(){
 
 
             // convert file to byte[]
-            byte[] bFile = readBytesFromFile("C:\\Users\\DavidYardimian\\tsFiles\\1080i_1.ts");
+            byte[] bFile = readBytesFromFile("C:\\Users\\DavidYardimian\\tsFiles\\1080p_2.ts");
 
             // save byte[] into a file
 
@@ -80,7 +31,7 @@ public class tsDecoder {
                 if(lineNumber == 2){
                     getPCR(newB);
                 }*/
-            TreeMap<Long, SEINalUnit> sei = seiFound(bFile);
+            HashMap<Long, SEINalUnit> sei = seiFound(bFile);
             HashMap<Integer, String> words = decodeCC(sei);
             System.out.println("608 CC IS: "+words.get(608));
             System.out.println("708 CC IS: "+words.get(708));
@@ -156,9 +107,9 @@ public class tsDecoder {
         return pcr;
     }
 
-    private static TreeMap<Long, SEINalUnit> seiFound(byte[] array){
+    private static HashMap<Long, SEINalUnit> seiFound(byte[] array){
         //LinkedHashSet<SEINalUnit> seiUnits = new LinkedHashSet<SEINalUnit>();
-        TreeMap<Long, SEINalUnit> orderedSeiUnits = new TreeMap<Long, SEINalUnit>();
+        HashMap<Long, SEINalUnit> orderedSeiUnits = new HashMap<Long, SEINalUnit>();
         int byteNumber = 0;
         long pts = 0;
         String PESPacketStarter = "00000000000000000000000111100000"; //in hex it is 00 00 01 E0
@@ -200,7 +151,7 @@ public class tsDecoder {
             if(byteMessage.equalsIgnoreCase(PESPacketStarter) && ptsFound == 0){
                 ptsFound = 1;
                 byteMessage = "";
-                byte[] newB = Arrays.copyOfRange(array, a+6, a+11);
+                byte[] newB = Arrays.copyOfRange(array, a+4, a+16);
                 pts = presentationTimeStamp(newB);
             }
             if(ptsFound == 1) {
@@ -233,17 +184,19 @@ public class tsDecoder {
 
             }
         }
+
         return orderedSeiUnits;
     }
 
-    private static HashMap<Integer, String> decodeCC(TreeMap<Long, SEINalUnit> seiUnits){
+    private static HashMap<Integer, String> decodeCC(HashMap<Long, SEINalUnit> seiUnits){
         HashMap<Integer,String> words = new HashMap<>();
         String six = "";
         String seven = "";
         DecoderFor608CC six08 = new DecoderFor608CC();
         DecoderFor708CC seven08 = new DecoderFor708CC();
-        for(Map.Entry<Long,SEINalUnit> entry : seiUnits.entrySet()) {
-            int byteNumber = entry.getValue().byteNumber;
+        SortedSet<Long> keys = new TreeSet<Long>(seiUnits.keySet());
+        for(Long timeStamp: keys) {
+            int byteNumber = seiUnits.get(timeStamp).byteNumber;
             //System.out.println("ByteNumber: "+byteNumber);
             String byteMessage = "";
             String first = "";
@@ -253,10 +206,10 @@ public class tsDecoder {
             int firstByteFound = 0;//if 1 that means the first byte has been found
             int secondByteFound = 0;//if 1 that means the second byte has been found
             int thirdByteFound = 0;//FF
-            for(int a = 0; a < entry.getValue().seiUnit.length;a++) {
+            for(int a = 0; a < seiUnits.get(timeStamp).seiUnit.length;a++) {
                 //System.out.println(Byte.toUnsignedInt(b));
                 byteNumber = (byteNumber + 1)%188;//to check if we are going to start a new line, which means we are going to start reading the header data
-                int x = Byte.toUnsignedInt(entry.getValue().seiUnit[a]);//getting int format of byte since the byte is a number
+                int x = Byte.toUnsignedInt(seiUnits.get(timeStamp).seiUnit[a]);//getting int format of byte since the byte is a number
                 String s = Integer.toBinaryString(x);//getting the binary representation of the int
                 while (s.length() < 8) {
                     s = 0 + s;//extending the string to have a length of 8 since 0 will only have a length of 1
@@ -280,7 +233,7 @@ public class tsDecoder {
                 }
                 if(secondByteFound == 1 && byteNumber > 3){
                     //System.out.println("Reacsjkb");
-                    byte[] closedCaptionInformation = Arrays.copyOfRange(entry.getValue().seiUnit, a+2, a+(countLength*3)+2);
+                    byte[] closedCaptionInformation = Arrays.copyOfRange(seiUnits.get(timeStamp).seiUnit, a+2, a+(countLength*3)+2);
                     System.out.println("ARRY LENGTH: "+closedCaptionInformation.length+"\n");
                     for (byte bite:closedCaptionInformation) {
                         int z = Byte.toUnsignedInt(bite);//getting int format of byte since the byte is a number
@@ -296,7 +249,7 @@ public class tsDecoder {
                         String hexStr2 = Integer.toString(decimal2, 16);
                         System.out.print(hexStr1+hexStr2);
                     }
-                    System.out.println("  "+entry.getKey()+"\n");
+                    System.out.println("  "+timeStamp+"\n");
                     six += six08.decode(closedCaptionInformation);
                     seven += seven08.decode(closedCaptionInformation);
                     break;
@@ -343,6 +296,7 @@ public class tsDecoder {
     private static long presentationTimeStamp(byte[] array){
         String pts = "";
         String stamp = "";
+        String ptsFlag = "";
         for(int a = 0; a < array.length;a++){
             int x = Byte.toUnsignedInt(array[a]);//getting int format of byte since the byte is a number
             String s = Integer.toBinaryString(x);//getting the binary representation of the int
@@ -351,9 +305,18 @@ public class tsDecoder {
             }
             pts += s;
         }
-        stamp += pts.substring(4, 7);
-        stamp += pts.substring(8, 22);
-        stamp += pts.substring(24, 38);
+        ptsFlag = pts.substring(0, 2);
+        if(ptsFlag.equals("60")){//should be 11 but doesnt work
+            stamp += pts.substring(56, 59);//+3
+            stamp += pts.substring(60, 74);//+1,+14
+            stamp += pts.substring(76, 90);//+2, +14
+        }
+        else{
+            stamp += pts.substring(16, 19);//+3
+            stamp += pts.substring(20, 34);//+1,+14
+            stamp += pts.substring(36, 50);//+2, +14
+        }
+
         return Long.parseLong(stamp,2);
     }
 

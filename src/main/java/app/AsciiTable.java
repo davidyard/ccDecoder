@@ -204,5 +204,38 @@ public class AsciiTable {
 
         return table;
     }
+    public HashMap<String, Integer> windowSettings(){
+        HashMap<String, Integer> table = new HashMap<>();
+        table.put("80",1);
+        table.put("81",1);
+        table.put("82",1);
+        table.put("83",1);
+        table.put("84",1);
+        table.put("85",1);
+        table.put("86",1);
+        table.put("87",1);
+        table.put("88",2);
+        table.put("89",2);
+        table.put("8a",2);
+        table.put("8b",2);
+        table.put("8c",2);
+        table.put("8d",2);
+        table.put("8e",1);
+        table.put("8f",1);
+        table.put("90",3);
+        table.put("91",4);
+        table.put("92",3);
+        table.put("97",5);
+        table.put("98",7);
+        table.put("99",7);
+        table.put("9a",7);
+        table.put("9b",7);
+        table.put("9c",7);
+        table.put("9d",7);
+        table.put("9e",7);
+        table.put("9f",7);
+
+        return table;
+    }
 
 }
