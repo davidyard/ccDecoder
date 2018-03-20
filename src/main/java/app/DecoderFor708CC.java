@@ -1,10 +1,12 @@
 package app;
 
 import java.util.HashMap;
+import java.util.HashSet;
 
 public class DecoderFor708CC {
 
     public String decode(byte[] array){
+        //HashSet<String> subtitles = new HashSet<>();
         String closedCaption = "";
         HashMap<String, String> table = new AsciiTable().makeTable();
         HashMap<String, Integer> settings = new AsciiTable().windowSettings();
@@ -14,6 +16,7 @@ public class DecoderFor708CC {
         int field = -1;
         int hasCCText = 0;//if 1 means there is text
         int windowSetting = 0;//if 0 then ccdata is not a window setting
+        int begginingOfCommand = 0;//if 0 then ccdata is not a window setting
         for (byte b: array) {
             String cc = "";
             if(counter == 0){//header of the cc_data so this part tells you if 608 or 708
@@ -52,7 +55,13 @@ public class DecoderFor708CC {
                     cc = hexStr1+hexStr2;
                     if(settings.containsKey(cc) && windowSetting == 0){
                         windowSetting = settings.get(cc);
+                        begginingOfCommand = 1;
                     }
+
+                    if(begginingOfCommand > 0){
+                        closedCaption += windowDefined(cc);
+                    }
+
                     else{
                         String ascii = table.get(cc);
                         if(ascii != null && windowSetting == 0){
@@ -64,11 +73,60 @@ public class DecoderFor708CC {
             }
             if(windowSetting > 0){
                 windowSetting--;
+                begginingOfCommand = 0;
             }
             counter = (counter + 1)%3;
         }
         //System.out.println(closedCaption);
         return closedCaption;
+    }
+
+    public static String windowDefined(String cc){
+        /*if(cc.equals("98")){
+
+            return " [WINDOW DEFINED!!] ";
+        }
+        if(cc.equals("99")){
+
+            return " [WINDOW DEFINED!!] ";
+        }
+        if(cc.equals("9a")){
+
+            return " [WINDOW DEFINED!!] ";
+        }
+        if(cc.equals("9b")){
+
+            return " [WINDOW DEFINED!!] ";
+        }
+        if(cc.equals("9c")){
+
+            return " [WINDOW DEFINED!!] ";
+        }
+        if(cc.equals("9d")){
+
+            return " [WINDOW DEFINED!!] ";
+        }
+        if(cc.equals("9e")){
+
+            return " [WINDOW DEFINED!!] ";
+        }
+        if(cc.equals("9f")){
+
+            return " [WINDOW DEFINED!!] ";
+        }*/
+        if(cc.equals("8a")){
+
+            return " [HIDING WINDOW!!] ";
+        }
+        if(cc.equals("89")){
+
+            return " [DISPLAYING WINDOW!!] ";
+        }
+        if(cc.equals("8b")){
+
+            return " [TOGGLE WINDOW!!] ";
+        }
+        return "";
     }
 
 }

@@ -6,6 +6,7 @@ public class AsciiTable {
 
     public HashMap<String, String> makeTable(){
         HashMap<String, String> table = new HashMap<>();
+        table.put("0d", " ");
         table.put("20"," ");
         table.put("21","!");
         table.put("22","\"");

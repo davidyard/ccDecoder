@@ -15,7 +15,7 @@ public class tsDecoder {
 
 
             // convert file to byte[]
-            byte[] bFile = readBytesFromFile("C:\\Users\\DavidYardimian\\tsFiles\\1080p_2.ts");
+        byte[] bFile = readBytesFromFile("C:\\Users\\DavidYardimian\\tsFiles\\1080p_2.ts");
 
             // save byte[] into a file
 
@@ -31,10 +31,11 @@ public class tsDecoder {
                 if(lineNumber == 2){
                     getPCR(newB);
                 }*/
-            HashMap<Long, SEINalUnit> sei = seiFound(bFile);
-            HashMap<Integer, String> words = decodeCC(sei);
-            System.out.println("608 CC IS: "+words.get(608));
-            System.out.println("708 CC IS: "+words.get(708));
+        HashMap<Long, SEINalUnit> sei = seiFound(bFile);
+        HashMap<Integer, String> words = decodeCC(sei);
+            //System.out.println("608 CC IS: "+words.get(608));
+        System.out.println("\n"+words.get(708));
+
             /*PrintWriter writer = new PrintWriter("mockDecoder.txt", "UTF-8");
             writer.println(words.get(608));
             writer.println(words.get(708));
@@ -190,9 +191,9 @@ public class tsDecoder {
 
     private static HashMap<Integer, String> decodeCC(HashMap<Long, SEINalUnit> seiUnits){
         HashMap<Integer,String> words = new HashMap<>();
-        String six = "";
+        //String six = "";
         String seven = "";
-        DecoderFor608CC six08 = new DecoderFor608CC();
+        //DecoderFor608CC six08 = new DecoderFor608CC();
         DecoderFor708CC seven08 = new DecoderFor708CC();
         SortedSet<Long> keys = new TreeSet<Long>(seiUnits.keySet());
         for(Long timeStamp: keys) {
@@ -228,13 +229,13 @@ public class tsDecoder {
                     firstByteFound = 0;//to prevent countLength from being changed
                     cc_countLengthValue = s.substring(3,8);
                     countLength = Integer.parseInt(cc_countLengthValue, 2);//gives me a decimal representation of the binary number
-                    System.out.println("COUNT LENGTH: "+countLength);
+                    //System.out.println("COUNT LENGTH: "+countLength);
                     //thirdByteFound = 1;
                 }
                 if(secondByteFound == 1 && byteNumber > 3){
                     //System.out.println("Reacsjkb");
                     byte[] closedCaptionInformation = Arrays.copyOfRange(seiUnits.get(timeStamp).seiUnit, a+2, a+(countLength*3)+2);
-                    System.out.println("ARRY LENGTH: "+closedCaptionInformation.length+"\n");
+                    //System.out.println("ARRY LENGTH: "+closedCaptionInformation.length+"\n");
                     for (byte bite:closedCaptionInformation) {
                         int z = Byte.toUnsignedInt(bite);//getting int format of byte since the byte is a number
                         String q = Integer.toBinaryString(z);//getting the binary representation of the int
@@ -247,16 +248,18 @@ public class tsDecoder {
                         String hexStr1 = Integer.toString(decimal1,16);
                         int decimal2 = Integer.parseInt(s2, 2);
                         String hexStr2 = Integer.toString(decimal2, 16);
-                        System.out.print(hexStr1+hexStr2);
+                        //System.out.print(hexStr1+hexStr2);
                     }
-                    System.out.println("  "+timeStamp+"\n");
-                    six += six08.decode(closedCaptionInformation);
+                    long t = Long.parseLong("7776000000");
+                    timeStamp = timeStamp/300;
+                    //System.out.println("  "+timeStamp+"\n");
+                    //six += six08.decode(closedCaptionInformation);
                     seven += seven08.decode(closedCaptionInformation);
                     break;
                 }
             }
         }
-        words.put(608, six);
+        //words.put(608, six);
         words.put(708, seven);
         return words;
     }
@@ -306,15 +309,21 @@ public class tsDecoder {
             pts += s;
         }
         ptsFlag = pts.substring(0, 2);
-        if(ptsFlag.equals("60")){//should be 11 but doesnt work
-            stamp += pts.substring(56, 59);//+3
-            stamp += pts.substring(60, 74);//+1,+14
-            stamp += pts.substring(76, 90);//+2, +14
+        if(ptsFlag.equals("11")){//11 in terms of binary. This indicates DTS is different from PTS
+            stamp += pts.substring(20, 23);//+3
+            stamp += pts.substring(24, 39);//+1,+15
+            stamp += pts.substring(40, 55);//+1, +15
+            String s = "";
+            s += pts.substring(60, 63);//+3
+            s += pts.substring(64, 79);//+1,+15
+            s += pts.substring(80, 95);//+1, +15
+            //System.out.print(" PTS: "+Long.parseLong(stamp,2)%90000+ " DTS: "+ Long.parseLong(s,2));
         }
         else{
-            stamp += pts.substring(16, 19);//+3
-            stamp += pts.substring(20, 34);//+1,+14
-            stamp += pts.substring(36, 50);//+2, +14
+            stamp += pts.substring(20, 23);//+3
+            stamp += pts.substring(24, 39);//+1,+15
+            stamp += pts.substring(40, 55);//+1, +15
+            //System.out.print(" PTS: "+Long.parseLong(stamp,2)/90000);
         }
 
         return Long.parseLong(stamp,2);
