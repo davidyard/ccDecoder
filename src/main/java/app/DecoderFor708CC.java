@@ -5,8 +5,7 @@ import java.util.HashSet;
 
 public class DecoderFor708CC {
 
-    public String decode(byte[] array){
-        //HashSet<String> subtitles = new HashSet<>();
+    public Subtitle decode(byte[] array, Subtitle subtitle, Long timeStamp){
         String closedCaption = "";
         HashMap<String, String> table = new AsciiTable().makeTable();
         HashMap<String, Integer> settings = new AsciiTable().windowSettings();
@@ -59,13 +58,18 @@ public class DecoderFor708CC {
                     }
 
                     if(begginingOfCommand > 0){
-                        closedCaption += windowDefined(cc);
+                        subtitle = windowDefined(cc, subtitle);
                     }
 
                     else{
                         String ascii = table.get(cc);
                         if(ascii != null && windowSetting == 0){
                             closedCaption += ascii;
+                            if(!subtitle.isStarted()){
+                                double startTime = timeStamp/90000.0;
+                                subtitle.setStarted(true);
+                                subtitle.setStartTime(startTime);
+                            }
                         }
                     }
 
@@ -78,10 +82,11 @@ public class DecoderFor708CC {
             counter = (counter + 1)%3;
         }
         //System.out.println(closedCaption);
-        return closedCaption;
+        subtitle.setCcData(closedCaption);
+        return subtitle;
     }
 
-    public static String windowDefined(String cc){
+    public static Subtitle windowDefined(String cc, Subtitle subtitle){
         /*if(cc.equals("98")){
 
             return " [WINDOW DEFINED!!] ";
@@ -113,20 +118,22 @@ public class DecoderFor708CC {
         if(cc.equals("9f")){
 
             return " [WINDOW DEFINED!!] ";
-        }*/
-        if(cc.equals("8a")){
-
-            return " [HIDING WINDOW!!] ";
         }
         if(cc.equals("89")){
 
             return " [DISPLAYING WINDOW!!] ";
+        }*/
+        if(cc.equals("8a")){
+            subtitle.setEnded(true);
+            return subtitle;
         }
+
         if(cc.equals("8b")){
 
-            return " [TOGGLE WINDOW!!] ";
+            subtitle.setEnded(true);
+            return subtitle;
         }
-        return "";
+        return subtitle;
     }
 
 }

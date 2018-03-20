@@ -15,7 +15,7 @@ public class tsDecoder {
 
 
             // convert file to byte[]
-        byte[] bFile = readBytesFromFile("C:\\Users\\DavidYardimian\\tsFiles\\1080p_2.ts");
+        byte[] bFile = readBytesFromFile("C:\\Users\\DavidYardimian\\tsFiles\\1080i_1.ts");
 
             // save byte[] into a file
 
@@ -31,10 +31,13 @@ public class tsDecoder {
                 if(lineNumber == 2){
                     getPCR(newB);
                 }*/
-        HashMap<Long, SEINalUnit> sei = seiFound(bFile);
-        HashMap<Integer, String> words = decodeCC(sei);
+        HashMap<Long, SEINalUnit> sei = getSei(bFile);
+        HashMap<Integer, HashSet<Subtitle>> words = decodeCC(sei);
             //System.out.println("608 CC IS: "+words.get(608));
-        System.out.println("\n"+words.get(708));
+        HashSet<Subtitle> subtitles = words.get(708);
+        subtitles.forEach(text -> {
+            System.out.println("STARTTIME: "+text.getStartTime()+" "+text.getCcData()+" ENDTIME: "+text.getEndTime());
+        });
 
             /*PrintWriter writer = new PrintWriter("mockDecoder.txt", "UTF-8");
             writer.println(words.get(608));
@@ -108,7 +111,7 @@ public class tsDecoder {
         return pcr;
     }
 
-    private static HashMap<Long, SEINalUnit> seiFound(byte[] array){
+    private static HashMap<Long, SEINalUnit> getSei(byte[] array){
         //LinkedHashSet<SEINalUnit> seiUnits = new LinkedHashSet<SEINalUnit>();
         HashMap<Long, SEINalUnit> orderedSeiUnits = new HashMap<Long, SEINalUnit>();
         int byteNumber = 0;
@@ -189,10 +192,12 @@ public class tsDecoder {
         return orderedSeiUnits;
     }
 
-    private static HashMap<Integer, String> decodeCC(HashMap<Long, SEINalUnit> seiUnits){
-        HashMap<Integer,String> words = new HashMap<>();
+    private static HashMap<Integer, HashSet<Subtitle>> decodeCC(HashMap<Long, SEINalUnit> seiUnits){
+        HashMap<Integer,HashSet<Subtitle>> words = new HashMap<>();
+        HashSet<Subtitle> set = new HashSet<>();
         //String six = "";
         String seven = "";
+        Subtitle subtitle = new Subtitle();
         //DecoderFor608CC six08 = new DecoderFor608CC();
         DecoderFor708CC seven08 = new DecoderFor708CC();
         SortedSet<Long> keys = new TreeSet<Long>(seiUnits.keySet());
@@ -250,17 +255,20 @@ public class tsDecoder {
                         String hexStr2 = Integer.toString(decimal2, 16);
                         //System.out.print(hexStr1+hexStr2);
                     }
-                    long t = Long.parseLong("7776000000");
-                    timeStamp = timeStamp/300;
                     //System.out.println("  "+timeStamp+"\n");
                     //six += six08.decode(closedCaptionInformation);
-                    seven += seven08.decode(closedCaptionInformation);
+                    subtitle = seven08.decode(closedCaptionInformation, subtitle, timeStamp);
                     break;
                 }
             }
+            if (subtitle.isEnded()){
+                subtitle.setEndTime(timeStamp/90000.0);
+                set.add(subtitle);
+                subtitle = new Subtitle();
+            }
         }
         //words.put(608, six);
-        words.put(708, seven);
+        words.put(708, set);
         return words;
     }
 
@@ -308,23 +316,10 @@ public class tsDecoder {
             }
             pts += s;
         }
-        ptsFlag = pts.substring(0, 2);
-        if(ptsFlag.equals("11")){//11 in terms of binary. This indicates DTS is different from PTS
-            stamp += pts.substring(20, 23);//+3
-            stamp += pts.substring(24, 39);//+1,+15
-            stamp += pts.substring(40, 55);//+1, +15
-            String s = "";
-            s += pts.substring(60, 63);//+3
-            s += pts.substring(64, 79);//+1,+15
-            s += pts.substring(80, 95);//+1, +15
-            //System.out.print(" PTS: "+Long.parseLong(stamp,2)%90000+ " DTS: "+ Long.parseLong(s,2));
-        }
-        else{
-            stamp += pts.substring(20, 23);//+3
-            stamp += pts.substring(24, 39);//+1,+15
-            stamp += pts.substring(40, 55);//+1, +15
-            //System.out.print(" PTS: "+Long.parseLong(stamp,2)/90000);
-        }
+        stamp += pts.substring(20, 23);//+3
+        stamp += pts.substring(24, 39);//+1,+15
+        stamp += pts.substring(40, 55);//+1, +15
+        //System.out.print(" PTS: "+Long.parseLong(stamp,2)/90000);
 
         return Long.parseLong(stamp,2);
     }
