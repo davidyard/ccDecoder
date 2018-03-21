@@ -35,7 +35,8 @@ public class tsDecoder {
         HashMap<Integer, HashSet<Subtitle>> words = decodeCC(sei);
             //System.out.println("608 CC IS: "+words.get(608));
         HashSet<Subtitle> subtitles = words.get(708);
-        subtitles.forEach(text -> {
+        SortedSet<Subtitle> keys = new TreeSet<Subtitle>(subtitles);
+        keys.forEach(text -> {
             System.out.println("STARTTIME: "+text.getStartTime()+" "+text.getCcData()+" ENDTIME: "+text.getEndTime());
         });
 

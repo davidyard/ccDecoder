@@ -82,7 +82,7 @@ public class DecoderFor708CC {
             counter = (counter + 1)%3;
         }
         //System.out.println(closedCaption);
-        subtitle.setCcData(closedCaption);
+        subtitle.setCcData(subtitle.getCcData()+closedCaption);
         return subtitle;
     }
 
